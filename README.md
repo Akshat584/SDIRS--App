@@ -54,4 +54,4 @@ This proactive, reactive, and analytical platform is designed to provide actiona
 
 We use a **Priority Task Workflow** to manage the development of the 10 SDIRS modules. Please see `docs/PRIORITY_TASKS.md` for the current progress, active tasks, and blocked items.
 
-For a detailed step-by-step rollout strategy, see `ROADMAP.md`.
+For a detailed step-by-step rollout strategy, see `ROADMAP.md`.# SDIRS--App
