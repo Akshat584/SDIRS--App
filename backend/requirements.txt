@@ -1,0 +1,27 @@
+fastapi
+uvicorn[standard]
+psycopg2-binary
+SQLAlchemy
+GeoAlchemy2
+shapely
+httpx
+snscrape @ git+https://github.com/JustAnotherArchivist/snscrape.git
+python-dotenv
+python-socketio
+scikit-learn
+joblib
+numpy
+pandas
+python-jose[cryptography]
+passlib[bcrypt]
+tensorflow
+opencv-python
+requests
+matplotlib
+seaborn
+scipy
+pydantic[email]
+python-multipart
+aiofiles
+bcrypt
+passlib

@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+venv/
+env/
+ENV/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+*.env
+
+# Build outputs
+dist/
+build/
+*.log
+compile_errors.log
+compile.log
+tsc.log
+
+# IDEs and editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Large model data (optional - keep if you want them in Git)
+# models_data/*.joblib
+
+# Mobile app specific
+.expo/
+web-build/
+/mobile-app/ios
+/mobile-app/android

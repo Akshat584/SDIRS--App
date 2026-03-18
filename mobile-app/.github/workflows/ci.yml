@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    env:
+      EAS_TOKEN: ${{ secrets.EAS_TOKEN }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      # Optional: trigger an EAS preview build when EAS_TOKEN is configured
+      - name: Install EAS CLI
+        if: env.EAS_TOKEN != ''
+        run: npm install -g eas-cli
+
+      - name: EAS preview build (Android)
+        if: env.EAS_TOKEN != ''
+        run: eas build --profile preview --platform android --non-interactive
+

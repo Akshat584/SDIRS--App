@@ -1,0 +1,9 @@
+SDIRS Edge AI Model Information
+-------------------------------
+Model Name: disaster_triage_v1.tflite
+Input: 224x224 RGB Image
+Output: Multi-label Classification (10 classes)
+Labels: fire, flood, earthquake, debris, landslide, medical, trapped, safe, structure_damage, road_blocked
+
+This is a placeholder for the TensorFlow Lite model used for on-device triage.
+In production, this file would be a binary .tflite model.
