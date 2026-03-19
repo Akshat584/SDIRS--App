@@ -148,16 +148,16 @@ function App() {
       <div className="video-placeholder">
         <div className="scan-line"></div>
         <div className="overlay-data">
-          <span>ALT: {selectedDrone?.altitude.toFixed(1)}m</span>
-          <span>SPD: {selectedDrone?.speed.toFixed(1)}km/h</span>
+          <span>ALT: {selectedDrone?.altitude?.toFixed(1)}m</span>
+          <span>SPD: {selectedDrone?.speed?.toFixed(1)}km/h</span>
           <span>BAT: {selectedDrone?.battery_percentage}%</span>
         </div>
         <p>RECEIVING ENCRYPTED STREAM...</p>
       </div>
       <div style={{ marginTop: 10, fontSize: '10px', color: 'var(--tx2)', display: 'flex', gap: '15px' }}>
-        <span>LAT: {selectedDrone?.lat.toFixed(5)}</span>
-        <span>LON: {selectedDrone?.lon.toFixed(5)}</span>
-        <span style={{ color: 'var(--gn)' }}>STATUS: {selectedDrone?.status.toUpperCase()}</span>
+        <span>LAT: {selectedDrone?.lat?.toFixed(5)}</span>
+        <span>LON: {selectedDrone?.lon?.toFixed(5)}</span>
+        <span style={{ color: 'var(--gn)' }}>STATUS: {selectedDrone?.status?.toUpperCase()}</span>
       </div>
     </div>
   );
@@ -170,7 +170,7 @@ function App() {
           <div className="metrics-row">
             <div className="metric">
               <span className="label">AVG RESPONSE TIME</span>
-              <span className="value">{analytics?.performance.avg_response_time_minutes}m</span>
+              <span className="value">{analytics?.performance?.avg_response_time_minutes ?? '—'}m</span>
             </div>
             <div className="metric">
               <span className="label">RESOLUTION RATE</span>
@@ -178,7 +178,7 @@ function App() {
             </div>
             <div className="metric">
               <span className="label">AI ACCURACY</span>
-              <span className="value">{analytics?.performance.ai_accuracy_percentage}%</span>
+              <span className="value">{analytics?.performance?.ai_accuracy_percentage ?? '—'}%</span>
             </div>
           </div>
         </div>

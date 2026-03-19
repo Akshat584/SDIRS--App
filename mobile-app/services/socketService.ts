@@ -4,7 +4,7 @@ import { io, Socket } from 'socket.io-client';
 // EXPO_PUBLIC_SOCKET_URL should be set in .env. 
 // For local dev, this is typically your machine's IP (e.g., http://192.168.1.XX:3000) 
 // or http://localhost:3000 for web/simulators.
-const SOCKET_URL = process.env.EXPO_PUBLIC_SOCKET_URL || 'http://localhost:3000';
+const SOCKET_URL = process.env.EXPO_PUBLIC_SOCKET_URL || 'http://192.168.68.182:8000';
 
 if (!process.env.EXPO_PUBLIC_SOCKET_URL) {
   console.warn(`[SocketService] EXPO_PUBLIC_SOCKET_URL not found in .env. Falling back to: ${SOCKET_URL}`);

@@ -5,6 +5,7 @@ import socketio
 import asyncio
 import os
 from typing import Optional, List
+from contextlib import asynccontextmanager
 
 # SDIRS Application Modules
 from app.api import earthquakes, weather_alerts, incidents, social_media, analysis, predictions, heatmap, analytics, routing, messages, drones
@@ -17,12 +18,13 @@ from app.services.weather_alert_service import get_weather_alert_data
 from app.services.iot_sensor_service import iot_service
 
 # --- FastAPI Initialization ---
-app = FastAPI(title="SDIRS Backend — Smart Disaster Intelligence & Response System")
-
-@app.on_event("startup")
-async def startup_event():
+@asynccontextmanager
+async def lifespan(app):
     # Start the IoT MQTT Simulator in the background
     asyncio.create_task(iot_service.start_mqtt_simulator())
+    yield
+
+app = FastAPI(title="SDIRS Backend — Smart Disaster Intelligence & Response System", lifespan=lifespan)
 
 # Serve uploaded incident photos
 os.makedirs("static/uploads", exist_ok=True)

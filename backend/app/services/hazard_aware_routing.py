@@ -63,7 +63,7 @@ class HazardAwareRoutingService:
         return directions
 
     @staticmethod
-    def _is_route_near_point(legs: List[Any], p_lat: float, p_lon: float, radius_km: float) -> (bool, float):
+    def _is_route_near_point(legs: List[Any], p_lat: float, p_lon: float, radius_km: float) -> tuple:
         """
         Check if any step in the route legs is within radius_km of a point.
         """

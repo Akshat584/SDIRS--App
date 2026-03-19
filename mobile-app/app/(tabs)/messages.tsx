@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { StyleSheet, View, Text, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,6 +24,18 @@ export default function MessagesScreen() {
   const [inputText, setInputText] = useState('');
   const flatListRef = useRef<FlatList>(null);
 
+  const handleReceiveMessage = useCallback((data: any) => {
+    const newMessage: ChatMessage = {
+      id: Math.random().toString(36).substr(2, 9),
+      sender_id: data.sender_id,
+      sender_name: data.sender_name || 'System',
+      text: data.text,
+      type: data.type || 'chat',
+      timestamp: Date.now(),
+    };
+    setMessages(prev => [...prev, newMessage]);
+  }, []);
+
   useEffect(() => {
     const loadUser = async () => {
       const profile = await AuthService.getCurrentUser();
@@ -32,22 +44,12 @@ export default function MessagesScreen() {
     loadUser();
 
     // Listen for incoming messages
-    SocketService.on('receive_message', (data: any) => {
-      const newMessage: ChatMessage = {
-        id: Math.random().toString(36).substr(2, 9),
-        sender_id: data.sender_id,
-        sender_name: data.sender_name || 'System',
-        text: data.text,
-        type: data.type || 'chat',
-        timestamp: Date.now(),
-      };
-      setMessages(prev => [...prev, newMessage]);
-    });
+    SocketService.on('receive_message', handleReceiveMessage);
 
     return () => {
-      SocketService.off('receive_message', () => {});
+      SocketService.off('receive_message', handleReceiveMessage);
     };
-  }, []);
+  }, [handleReceiveMessage]);
 
   const sendMessage = () => {
     if (!inputText.trim() || !user) return;

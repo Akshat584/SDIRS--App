@@ -44,7 +44,7 @@ async def get_drone_fleet():
             # Standard simulation for non-SAR drones
             drone.lat += random.uniform(-0.0005, 0.0005)
             drone.lon += random.uniform(-0.0005, 0.0005)
-            drone.battery_percentage = max(0, drone.battery_percentage - 0.5)
+            drone.battery_percentage = max(0, drone.battery_percentage - 1)
             drone.last_update = datetime.now()
             
     return DroneResponse(

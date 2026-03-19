@@ -1,6 +1,5 @@
 import axios from 'axios';
-
-const API_BASE = "http://localhost:8000"; // Update with your actual server IP
+import { API_BASE } from './apiConfig';
 
 export interface HeatmapPoint {
   lat: number;

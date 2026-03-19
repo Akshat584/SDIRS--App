@@ -1,9 +1,9 @@
 import axios from 'axios';
+import { API_BASE } from './apiConfig';
 
-// Update with your actual server IP or use process.env.EXPO_PUBLIC_API_URL
-const API_BASE = "http://localhost:8000"; 
-
+// SDIRS Hazard-Aware Routing Engine (Module 6)
 export interface RouteStep {
+
   distance: { text: string; value: number };
   duration: { text: string; value: number };
   duration_in_traffic?: { text: string; value: number };

@@ -48,6 +48,11 @@ CREATE TABLE resources (
     capacity INTEGER DEFAULT 1,
     team_lead_id INTEGER REFERENCES users(id),
     
+    -- Smart Resource AI (V2) Fields
+    specialized_skills JSONB DEFAULT '[]',
+    equipment_status JSONB DEFAULT '{}',
+    current_workload INTEGER DEFAULT 0,
+    
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );

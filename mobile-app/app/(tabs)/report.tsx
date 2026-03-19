@@ -11,6 +11,7 @@ import { useLocation } from '@/hooks/useLocation';
 import SocketService from '@/services/socketService';
 import { MLService, ImageAnalysisResult } from '@/services/mlService';
 import { AuthService } from '@/services/authService';
+import { API_BASE } from '@/services/apiConfig';
 
 const INCIDENT_CATEGORIES = [
   { id: 'flood', label: 'Flood', icon: 'water', color: '#00d4ff' },
@@ -27,8 +28,6 @@ const SAFETY_ADVISORIES: Record<string, string[]> = {
   earthquake: ['Drop, Cover, and Hold on.', 'Stay away from windows and heavy furniture.', 'If outside, move to an open area.'],
   roadblock: ['Use alternative routes.', 'Do not attempt to bypass official barriers.', 'Watch for emergency responders.'],
 };
-
-const API_BASE = "http://localhost:8000"; // Update with your actual server IP
 
 export default function ReportScreen() {
   const { location } = useLocation();

@@ -106,11 +106,13 @@ export default function MapScreen() {
     }));
   }, []);
 
+  const handleIncidentAssignment = useCallback((data: any) => {
+    setAssignedIncident(data);
+  }, []);
+
   useEffect(() => {
     SocketService.on('location_update', handleLocationUpdate);
-    SocketService.on('incident_assignment', (data: any) => {
-      setAssignedIncident(data);
-    });
+    SocketService.on('incident_assignment', handleIncidentAssignment);
 
     // Mock an assignment for testing if role is responder
     if (user?.role === 'responder') {
@@ -126,11 +128,9 @@ export default function MapScreen() {
 
     return () => {
       SocketService.off('location_update', handleLocationUpdate);
-      SocketService.off('incident_assignment', (data: any) => {
-        setAssignedIncident(data);
-      });
+      SocketService.off('incident_assignment', handleIncidentAssignment);
     };
-  }, [handleLocationUpdate, user]);
+  }, [handleLocationUpdate, handleIncidentAssignment, user]);
 
   return (
     <View style={styles.container}>

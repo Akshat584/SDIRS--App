@@ -55,6 +55,7 @@ Before starting, ensure you have the following installed:
     ```bash
     uvicorn main:sio_app --reload --host 0.0.0.0 --port 8000
     ```
+    > **Note:** The `--host 0.0.0.0` flag is required. By default, Uvicorn runs on `127.0.0.1` (localhost), which only accepts connections from the same machine. `--host 0.0.0.0` tells the server to accept connections from any device on your local network (like your phone).
     - API Docs: [http://localhost:8000/docs](http://localhost:8000/docs)
     - Root Status: [http://localhost:8000/](http://localhost:8000/)
 
@@ -88,9 +89,10 @@ Before starting, ensure you have the following installed:
     ```bash
     npm install
     ```
-3.  **Configure Environment**:
+3.  **Configure Environment & API Connections**:
     - Open `mobile-app/.env`.
-    - Set `EXPO_PUBLIC_SOCKET_URL` to your machine's local IP address (e.g., `http://192.168.1.10:8000`).
+    - Set `EXPO_PUBLIC_SOCKET_URL` to your machine's local IP address (e.g., `http://192.168.68.182:8000`).
+    - **Important:** If you see an `AxiosError: Network Error` on your phone/emulator, it means Axios is trying to connect to `localhost`. You must search your mobile codebase (such as `services/heatmapService.ts` and `app/(tabs)/report.tsx`) and replace any hardcoded `http://localhost:8000` strings with your computer's local IP address (e.g., `http://192.168.68.182:8000`).
 4.  **Run the App**:
     ```bash
     npx expo start

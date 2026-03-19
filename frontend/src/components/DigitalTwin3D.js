@@ -109,23 +109,23 @@ const DigitalTwin3D = () => {
   }, []);
 
   return (
-    <div className="w-full h-full relative bg-[#070a0f] rounded-xl overflow-hidden border border-white/5">
-      <div className="absolute top-4 left-4 z-10 p-3 bg-black/60 backdrop-blur-md border border-cyan-500/30 rounded-lg pointer-events-none">
-        <h3 className="text-cyan-400 font-bebas text-xl tracking-wider">3D DIGITAL TWIN (BETA)</h3>
-        <p className="text-[10px] text-gray-400 font-mono mt-1">MODULE 9: FLOOD & TERRAIN ANALYSIS</p>
-        <div className="mt-3 flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse" />
-            <span className="text-[10px] text-cyan-200">LIVE TERRAIN SIMULATION</span>
+    <div style={{ width: '100%', height: '100%', position: 'relative', backgroundColor: '#070a0f', borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.05)' }}>
+      <div style={{ position: 'absolute', top: 16, left: 16, zIndex: 10, padding: 12, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(12px)', border: '1px solid rgba(0,212,255,0.3)', borderRadius: 8, pointerEvents: 'none' }}>
+        <h3 style={{ color: 'var(--cy)', fontSize: 20, letterSpacing: 2, margin: 0 }}>3D DIGITAL TWIN (BETA)</h3>
+        <p style={{ fontSize: 10, color: '#9ca3af', fontFamily: 'monospace', marginTop: 4 }}>MODULE 9: FLOOD & TERRAIN ANALYSIS</p>
+        <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: 'var(--cy)', animation: 'pulse 2s infinite' }} />
+            <span style={{ fontSize: 10, color: '#a5f3fc' }}>LIVE TERRAIN SIMULATION</span>
         </div>
       </div>
       
-      <div className="absolute bottom-4 right-4 z-10 flex gap-2">
-         <div className="p-2 bg-black/40 text-[9px] text-gray-400 font-mono border border-white/5 rounded">
+      <div style={{ position: 'absolute', bottom: 16, right: 16, zIndex: 10, display: 'flex', gap: 8 }}>
+         <div style={{ padding: 8, background: 'rgba(0,0,0,0.4)', fontSize: 9, color: '#9ca3af', fontFamily: 'monospace', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 4 }}>
             ALT: 250m | POV: ORBIT
          </div>
       </div>
 
-      <div ref={mountRef} className="w-full h-full" />
+      <div ref={mountRef} style={{ width: '100%', height: '100%' }} />
     </div>
   );
 };
