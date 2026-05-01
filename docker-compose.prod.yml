@@ -1,0 +1,100 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: sdirs-postgres-prod
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-disaster_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+    networks:
+      - sdirs-prod-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-disaster_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: sdirs-redis-prod
+    restart: unless-stopped
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - redis_prod_data:/data
+    networks:
+      - sdirs-prod-network
+
+  # Backend API with Gunicorn
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sdirs-backend-prod
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${DB_NAME:-disaster_db}
+      - REDIS_URL=redis://redis:6379/0
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - ENVIRONMENT=production
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
+      - SOCKET_CORS_ORIGIN=${SOCKET_CORS_ORIGIN}
+      - LOG_LEVEL=WARNING
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    # Using Gunicorn with Uvicorn workers for production-grade reliability
+    command: >
+      sh -c "python init_db_production.py && 
+             gunicorn main:sio_app -w 4 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000"
+    volumes:
+      - ./backend/static:/app/static
+    networks:
+      - sdirs-prod-network
+
+  # Frontend Command Center
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: sdirs-frontend-prod
+    restart: unless-stopped
+    depends_on:
+      - backend
+    networks:
+      - sdirs-prod-network
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: sdirs-nginx-prod
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - sdirs-prod-network
+
+volumes:
+  postgres_prod_data:
+  redis_prod_data:
+
+networks:
+  sdirs-prod-network:
+    driver: bridge

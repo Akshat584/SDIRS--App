@@ -1,27 +1,60 @@
+# FastAPI and ASGI
 fastapi
 uvicorn[standard]
+gunicorn
+
+# Database
+sqlalchemy
 psycopg2-binary
-SQLAlchemy
-GeoAlchemy2
-shapely
-httpx
-snscrape @ git+https://github.com/JustAnotherArchivist/snscrape.git
-python-dotenv
-python-socketio
-scikit-learn
-joblib
-numpy
-pandas
+alembic
+
+# Authentication & Security
 python-jose[cryptography]
 passlib[bcrypt]
-tensorflow
-opencv-python
-requests
-matplotlib
-seaborn
-scipy
-pydantic[email]
 python-multipart
+
+# HTTP Client & External APIs
+httpx
+requests
+
+# Real-time Communication
+python-socketio
+python-socketio[asyncio_client]
+
+# Data Validation & Serialization
+pydantic
+pydantic-settings
+email-validator
+
+# File Upload
 aiofiles
-bcrypt
-passlib
+
+# Environment & Configuration
+python-dotenv
+
+# AI/ML
+opencv-python
+numpy
+pandas
+scikit-learn
+joblib
+ultralytics
+
+# Notification Services
+firebase-admin
+twilio
+
+# CORS
+fastapi-cors
+
+# Logging & Monitoring
+structlog
+
+# Testing
+pytest
+pytest-asyncio
+
+# Utilities
+python-dateutil
+Pillow
+slowapi

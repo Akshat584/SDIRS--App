@@ -11,7 +11,7 @@ class Severity(Enum):
     CRITICAL = "critical"
 
 # Load models
-MODEL_DIR = os.path.join(os.path.dirname(__file__), '..', '..', 'ml_pipeline', 'models')
+MODEL_DIR = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'models_data')
 severity_model_path = os.path.join(MODEL_DIR, 'severity_model.joblib')
 resource_model_path = os.path.join(MODEL_DIR, 'resource_model.joblib')
 

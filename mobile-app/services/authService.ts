@@ -1,59 +1,57 @@
-import { supabase } from './supabaseClient';
-import { Alert } from 'react-native';
+import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_BASE } from './apiConfig';
 
-export type UserRole = 'citizen' | 'responder';
+export type UserRole = 'citizen' | 'responder' | 'admin' | 'ops';
 
 export interface UserProfile {
-  id: string;
+  id: string | number;
   email: string;
   role: UserRole;
   fullName: string;
 }
 
+const TOKEN_KEY = 'sdirs_auth_token';
+
 export const AuthService = {
   /**
-   * Signs up a new user and assigns them a role.
-   * In a real Supabase setup, roles are often stored in a 'profiles' table.
+   * Signs up a new user via the backend API.
    */
   signUp: async (email: string, password: string, fullName: string, role: UserRole) => {
     try {
-      const { data, error } = await supabase.auth.signUp({
+      const response = await axios.post(`${API_BASE}/api/auth/register`, {
+        name: fullName,
         email,
         password,
-        options: {
-          data: {
-            full_name: fullName,
-            role: role,
-          },
-        },
+        role
       });
-
-      if (error) throw error;
-      
-      // Note: In production, you would have a database trigger to insert 
-      // this into a 'profiles' table after auth.signUp.
-      return { user: data.user, error: null };
+      return { user: response.data, error: null };
     } catch (error: any) {
-      console.error('Sign up error:', error.message);
-      return { user: null, error: error.message };
+      console.error('Sign up error:', error.response?.data?.detail || error.message);
+      return { user: null, error: error.response?.data?.detail || error.message };
     }
   },
 
   /**
-   * Signs in an existing user.
+   * Signs in an existing user via the backend API.
    */
   signIn: async (email: string, password: string) => {
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      const formData = new FormData();
+      formData.append('username', email);
+      formData.append('password', password);
 
-      if (error) throw error;
-      return { session: data.session, error: null };
+      const response = await axios.post(`${API_BASE}/api/auth/login`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
+      const { access_token } = response.data;
+      await AsyncStorage.setItem(TOKEN_KEY, access_token);
+      
+      return { session: response.data, error: null };
     } catch (error: any) {
-      console.error('Sign in error:', error.message);
-      return { session: null, error: error.message };
+      console.error('Sign in error:', error.response?.data?.detail || error.message);
+      return { session: null, error: error.response?.data?.detail || error.message };
     }
   },
 
@@ -61,25 +59,37 @@ export const AuthService = {
    * Signs out the current user.
    */
   signOut: async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      console.error('Sign out error:', error.message);
+    try {
+      await AsyncStorage.removeItem(TOKEN_KEY);
+    } catch (error) {
+      console.error('Sign out error:', error);
     }
   },
 
   /**
-   * Fetches the current user's profile and role.
+   * Fetches the current user's profile from the backend.
    */
   getCurrentUser: async (): Promise<UserProfile | null> => {
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) return null;
+    try {
+      const token = await AsyncStorage.getItem(TOKEN_KEY);
+      if (!token) return null;
 
-    return {
-      id: user.id,
-      email: user.email || '',
-      role: (user.user_metadata?.role as UserRole) || 'citizen',
-      fullName: user.user_metadata?.full_name || 'User',
-    };
+      const response = await axios.get(`${API_BASE}/api/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      const user = response.data;
+      return {
+        id: user.id,
+        email: user.email,
+        role: user.role as UserRole,
+        fullName: user.name,
+      };
+    } catch (error) {
+      console.error('[AuthService] Error fetching current user:', error);
+      // If token is invalid/expired, clear it
+      await AsyncStorage.removeItem(TOKEN_KEY);
+      return null;
+    }
   }
 };

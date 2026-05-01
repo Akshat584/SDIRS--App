@@ -1,17 +1,9 @@
 import { io, Socket } from 'socket.io-client';
-
-// Define the URL for your backend server. 
-// EXPO_PUBLIC_SOCKET_URL should be set in .env. 
-// For local dev, this is typically your machine's IP (e.g., http://192.168.1.XX:3000) 
-// or http://localhost:3000 for web/simulators.
-const SOCKET_URL = process.env.EXPO_PUBLIC_SOCKET_URL || 'http://192.168.68.182:8000';
-
-if (!process.env.EXPO_PUBLIC_SOCKET_URL) {
-  console.warn(`[SocketService] EXPO_PUBLIC_SOCKET_URL not found in .env. Falling back to: ${SOCKET_URL}`);
-}
+import { API_CONFIG } from './apiConfig';
 
 class SocketService {
   private socket: Socket | null = null;
+  private readonly socketUrl = API_CONFIG.SOCKET_URL;
 
   /**
    * Initializes the socket connection.
@@ -19,31 +11,39 @@ class SocketService {
   connect() {
     if (this.socket) return;
 
-    this.socket = io(SOCKET_URL, {
+    console.log(`[SocketService] Initializing socket connection to: ${this.socketUrl}`);
+
+    this.socket = io(this.socketUrl, {
       transports: ['websocket'],
       autoConnect: true,
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionAttempts: 10,
+      timeout: 20000,
     });
 
     this.socket.on('connect', () => {
-      console.log('Connected to Alert Server:', this.socket?.id);
+      console.log('[SocketService] Connected:', this.socket?.id);
     });
 
-    this.socket.on('disconnect', () => {
-      console.log('Disconnected from Alert Server');
+    this.socket.on('connect_error', (error) => {
+      console.error('[SocketService] Connection error:', error.message);
+    });
+
+    this.socket.on('disconnect', (reason) => {
+      console.log('[SocketService] Disconnected:', reason);
     });
 
     this.socket.on('error', (error) => {
-      console.error('Socket Error:', error);
+      console.error('[SocketService] Socket error:', error);
     });
   }
 
   /**
    * Listen for specific events from the server.
-   * @param event The event name (e.g., 'emergency_alert').
-   * @param callback Function to handle the received data.
    */
   on(event: string, callback: (data: any) => void) {
-    if (!this.socket) this.connect();
+    this.connect();
     this.socket?.on(event, callback);
   }
 
@@ -56,18 +56,22 @@ class SocketService {
 
   /**
    * Emit events to the server.
-   * @param event The event name (e.g., 'report_incident').
-   * @param data The data to send.
    */
   emit(event: string, data: any) {
-    if (!this.socket) this.connect();
+    this.connect();
     this.socket?.emit(event, data);
   }
 
   /**
-   * Send a chat message or broadcast (Module 9).
+   * Send a chat message or broadcast.
    */
-  sendMessage(messageData: { sender_id: string, incident_id?: number, text: string, type: string }) {
+  sendMessage(messageData: {
+    sender_id: string | number;
+    sender_name?: string;
+    incident_id?: number;
+    text: string;
+    type: string;
+  }) {
     this.emit('send_message', messageData);
   }
 
@@ -78,7 +82,22 @@ class SocketService {
     if (this.socket) {
       this.socket.disconnect();
       this.socket = null;
+      console.log('[SocketService] Socket disconnected and cleaned up');
     }
+  }
+
+  /**
+   * Check if socket is connected.
+   */
+  isConnected(): boolean {
+    return this.socket?.connected || false;
+  }
+
+  /**
+   * Get the current socket ID.
+   */
+  getSocketId(): string | null {
+    return this.socket?.id || null;
   }
 }
 

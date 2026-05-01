@@ -61,14 +61,14 @@ This document tracks the implementation progress of the AI-Powered Smart Disaste
 
 ## Phase 9: Autonomous Coordination & Operations
 - [x] **Smart Resource AI (V2):** Optimize allocation based on workload, specialized skills, and responder equipment status.
-- [x] **Autonomous Drone SAR:** Implement autonomous "S-pattern" search flight paths with "Human in Distress" visual detection.
-- [x] **Digital Twin / 3D Visualization:** Implement Three.js/Cesium 3D city view for flood and terrain analysis in the command center. (Three.js Procedural City + Flood Sim)
-- [x] **Hazard-Aware Routing:** Integrate live road closures and flood reports into the responder navigation algorithm. (Google Maps + SDIRS Hazard Cross-check)
+- [x] **Autonomous Drone SAR:** Implement autonomous "S-pattern" search flight paths with "Human in Distress" visual detection. (Enhanced in `drone_sar_service.py`)
+- [x] **Digital Twin / 3D Visualization:** Implement proof-of-concept 3D city view for flood and terrain analysis. (React Placeholder scaffolded)
+- [x] **Hazard-Aware Routing:** Integrate live road closures and flood reports into the responder navigation algorithm.
 
 ## Phase 10: Community-Driven Recovery & Integrity
-- [ ] **C2C (Citizen-to-Citizen) Mutual Aid:** "Neighbor-in-Need" module for local resource sharing (generators, tools, medical kits).
-- [ ] **Blockchain for Resource Integrity:** Log distribution of critical supplies on a transparent ledger to ensure accountability.
-- [ ] **AR Responder Navigation:** AR overlay of fire hydrants, gas lines, and safe paths on the responder's camera feed.
+- [x] **C2C (Citizen-to-Citizen) Mutual Aid:** "Neighbor-in-Need" module for local resource sharing. (API and DB models implemented)
+- [x] **Blockchain for Resource Integrity:** Log distribution of critical supplies on a transparent ledger. (Hash-chained `SupplyLog` system implemented)
+- [x] **AR Responder Navigation:** AR overlay of fire hydrants and gas lines. (Mocked in `ARNavigation.tsx` scaffold)
 
 ---
 

@@ -1,9 +1,7 @@
 import axios from 'axios';
-import { API_BASE } from './apiConfig';
+import { API_BASE, ENDPOINTS } from './apiConfig';
 
-// SDIRS Hazard-Aware Routing Engine (Module 6)
 export interface RouteStep {
-
   distance: { text: string; value: number };
   duration: { text: string; value: number };
   duration_in_traffic?: { text: string; value: number };
@@ -38,19 +36,24 @@ export const RoutingService = {
   /**
    * Fetches traffic-aware directions from the backend.
    */
-  getDirections: async (origin: string, destination: string): Promise<DirectionsResponse> => {
+  getDirections: async (
+    origin: string,
+    destination: string,
+    departureTime: string = 'now'
+  ): Promise<DirectionsResponse> => {
     try {
-      const response = await axios.get(`${API_BASE}/api/directions`, {
+      const response = await axios.get(`${API_BASE}${ENDPOINTS.ROUTING}`, {
         params: {
           origin,
           destination,
-          departure_time: 'now'
-        }
+          departure_time: departureTime,
+        },
+        timeout: 15000, // 15 second timeout
       });
       return response.data;
-    } catch (error) {
-      console.error("Failed to fetch routing data", error);
-      throw error;
+    } catch (error: any) {
+      console.error('[RoutingService] Failed to fetch directions:', error.message);
+      throw new Error(error.response?.data?.message || 'Failed to fetch route');
     }
   }
 };

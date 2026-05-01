@@ -9,16 +9,20 @@ export const useLocation = () => {
 
   const refreshLocation = useCallback(async () => {
     setLoading(true);
+    setErrorMsg(null);
+
     try {
       const current = await LocationService.getCurrentLocation();
+
       if (current) {
         setLocation(current);
       } else {
         setErrorMsg('Permission to access location was denied');
       }
-    } catch (error) {
-      setErrorMsg('Error fetching location');
-      console.error(error);
+    } catch (error: any) {
+      const errorMessage = error?.message || 'Unknown error';
+      setErrorMsg(`Error fetching location: ${errorMessage}`);
+      console.error('[useLocation] Error:', error);
     } finally {
       setLoading(false);
     }
@@ -28,21 +32,21 @@ export const useLocation = () => {
     let subscription: any = null;
 
     const initLocation = async () => {
-      await refreshLocation();
-      
       try {
+        await refreshLocation();
+
         subscription = await LocationService.watchLocation((newLocation) => {
           setLocation(newLocation);
         });
       } catch (error) {
-        console.error('Error starting location watch:', error);
+        console.error('[useLocation] Error starting location watch:', error);
       }
     };
 
     initLocation();
 
     return () => {
-      if (subscription) {
+      if (subscription?.remove) {
         subscription.remove();
       }
     };

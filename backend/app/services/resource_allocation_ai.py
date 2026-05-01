@@ -19,35 +19,61 @@ class ResourceAllocationAI:
     """
 
     @staticmethod
-    def get_nearby_responders(db: Session, incident_location, radius_km: float = 5.0) -> Dict:
+    def get_nearby_responders(db: Session, incident_location: incident_schemas.Location, radius_km: float = 5.0) -> Dict:
         """
         SDIRS Spatial Query (Module 5)
-        Finds all responders (users) and ambulances (resources) within a given radius using ST_DWithin.
-        Uses PostGIS Geography for accurate meter-based distance calculation.
+        Finds all responders (users) and ambulances (resources) within a given radius.
+        Supports both PostGIS (PostgreSQL) and standard Float-based queries (SQLite fallback).
         """
         radius_meters = radius_km * 1000
+        lat = incident_location.lat
+        lon = incident_location.lon
         
-        # 1. Find nearby Resources (specifically ambulances as requested)
-        nearby_resources = db.query(db_models.Resource).filter(
-            func.ST_DWithin(
-                func.cast(db_models.Resource.current_location, Geography),
-                func.cast(incident_location, Geography),
-                radius_meters
-            ),
-            db_models.Resource.resource_type == 'ambulance',
-            db_models.Resource.status == 'available'
-        ).all()
+        # Check if we are using PostgreSQL/PostGIS
+        is_postgres = db.bind.dialect.name == 'postgresql'
         
-        # 2. Find nearby Responders (Users with responder role)
-        nearby_responders = db.query(db_models.User).filter(
-            func.ST_DWithin(
-                func.cast(db_models.User.last_location, Geography),
-                func.cast(incident_location, Geography),
-                radius_meters
-            ),
-            db_models.User.role == 'responder',
-            db_models.User.status == 'active'
-        ).all()
+        if is_postgres:
+            # PostGIS optimized query
+            point_wkt = f'POINT({lon} {lat})'
+            
+            nearby_resources = db.query(db_models.Resource).filter(
+                func.ST_DWithin(
+                    func.ST_GeographyFromText(f'SRID=4326;{point_wkt}'),
+                    func.ST_GeographyFromText(func.concat('SRID=4326;POINT(', db_models.Resource.longitude, ' ', db_models.Resource.latitude, ')')),
+                    radius_meters
+                ),
+                db_models.Resource.resource_type == 'ambulance',
+                db_models.Resource.status == 'available'
+            ).all()
+            
+            nearby_responders = db.query(db_models.User).filter(
+                func.ST_DWithin(
+                    func.ST_GeographyFromText(f'SRID=4326;{point_wkt}'),
+                    func.ST_GeographyFromText(func.concat('SRID=4326;POINT(', db_models.User.longitude, ' ', db_models.User.latitude, ')')),
+                    radius_meters
+                ),
+                db_models.User.role == 'responder',
+                db_models.User.status == 'active'
+            ).all()
+        else:
+            # SQLite / Fallback: Simple bounding box + Pythagorean distance (approximate)
+            # 1 degree lat is ~111km, 1 degree lon is ~111km * cos(lat)
+            lat_delta = radius_km / 111.0
+            lon_delta = radius_km / (111.0 * 0.7) # Approximation for mid-latitudes
+            
+            nearby_resources = db.query(db_models.Resource).filter(
+                db_models.Resource.latitude.between(lat - lat_delta, lat + lat_delta),
+                db_models.Resource.longitude.between(lon - lon_delta, lon + lon_delta),
+                db_models.Resource.resource_type == 'ambulance',
+                db_models.Resource.status == 'available'
+            ).all()
+            
+            nearby_responders = db.query(db_models.User).filter(
+                db_models.User.latitude.between(lat - lat_delta, lat + lat_delta),
+                db_models.User.longitude.between(lon - lon_delta, lon + lon_delta),
+                db_models.User.role == 'responder',
+                db_models.User.status == 'active'
+            ).all()
         
         logger.info(f"SDIRS Spatial Alert: Found {len(nearby_resources)} ambulances and {len(nearby_responders)} responders within {radius_km}km.")
         
@@ -117,15 +143,13 @@ class ResourceAllocationAI:
 
         # 4. Scoring Algorithm (Module 5: V2 Optimization)
         scored_resources = []
-        incident_pos = to_shape(incident.location)
 
         for res in candidates:
             score = 0.0
             
             # A. Distance Scoring (Proximity)
-            res_pos = to_shape(res.current_location)
             # Roughly calculate distance in km (using 111km per degree)
-            dist_km = ((res_pos.x - incident_pos.x)**2 + (res_pos.y - incident_pos.y)**2)**0.5 * 111
+            dist_km = ((res.latitude - incident.latitude)**2 + (res.longitude - incident.longitude)**2)**0.5 * 111
             # Inverse score: 0km = 50 pts, 20km+ = 0 pts
             score += max(0, 50 - (dist_km * 2.5))
             

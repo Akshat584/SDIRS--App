@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import Optional, List
 from datetime import datetime
 
@@ -18,6 +18,20 @@ class DisasterEvent(BaseModel):
     verified: bool
     source: Optional[str] = None
     created_at: datetime
+
+    @field_validator('latitude')
+    @classmethod
+    def validate_latitude(cls, v):
+        if not -90 <= v <= 90:
+            raise ValueError('Latitude must be between -90 and 90 degrees')
+        return v
+
+    @field_validator('longitude')
+    @classmethod
+    def validate_longitude(cls, v):
+        if not -180 <= v <= 180:
+            raise ValueError('Longitude must be between -180 and 180 degrees')
+        return v
 
 class EarthquakeDetails(BaseModel):
     event_id: int

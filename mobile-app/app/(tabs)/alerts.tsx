@@ -1,48 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, memo } from 'react';
 import { StyleSheet, FlatList, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import SocketService from '@/services/socketService';
+import { AlertService, AlertItem } from '@/services/alertService';
+import { useLocation } from '@/hooks/useLocation';
 
-interface AlertItem {
-  id: string;
-  type: string;
-  message: string;
-  severity: 'high' | 'medium' | 'low';
-  timestamp: number;
-}
-
-export default function AlertsScreen() {
-  const [alerts, setAlerts] = useState<AlertItem[]>([]);
-
-  useEffect(() => {
-    // Listen for real-time alerts
-    SocketService.on('emergency_alert', (newAlert: AlertItem) => {
-      setAlerts((prev) => [newAlert, ...prev]);
-    });
-
-    // Mock initial alerts for demonstration
-    setAlerts([
-      {
-        id: '1',
-        type: 'Flood Warning',
-        message: 'Heavy rainfall expected in the downtown area. Seek higher ground.',
-        severity: 'high',
-        timestamp: Date.now() - 1000 * 60 * 30,
-      },
-      {
-        id: '2',
-        type: 'Road Closure',
-        message: 'Main St closed due to fallen trees.',
-        severity: 'medium',
-        timestamp: Date.now() - 1000 * 60 * 60 * 2,
-      },
-    ]);
-  }, []);
-
-  const renderItem = ({ item }: { item: AlertItem }) => (
+const AlertCard = memo(function AlertCard({ item }: { item: AlertItem }) {
+  return (
     <ThemedView style={[styles.alertCard, styles[item.severity]]}>
       <View style={styles.alertHeader}>
         <IconSymbol 
@@ -58,14 +25,67 @@ export default function AlertsScreen() {
       </ThemedText>
     </ThemedView>
   );
+});
+
+export default function AlertsScreen() {
+  const [alerts, setAlerts] = useState<AlertItem[]>([]);
+  const { location } = useLocation();
+
+  const loadAlerts = useCallback(async () => {
+    try {
+      // 1. Fetch historical/active incidents as alerts
+      const incidentAlerts = await AlertService.getIncidentAlerts();
+      
+      // 2. Fetch weather alerts based on location
+      let weatherAlerts: AlertItem[] = [];
+      if (location?.coords) {
+        weatherAlerts = await AlertService.getWeatherAlerts(
+          location.coords.latitude,
+          location.coords.longitude
+        );
+      }
+
+      // 3. Combine and sort by timestamp
+      const combined = [...weatherAlerts, ...incidentAlerts].sort((a, b) => b.timestamp - a.timestamp);
+      setAlerts(combined);
+    } catch (err) {
+      console.error("Failed to load alerts:", err);
+    }
+  }, [location]);
+
+  useEffect(() => {
+    loadAlerts();
+
+    // Listen for real-time alerts
+    const handleNewAlert = (newAlert: AlertItem) => {
+      setAlerts((prev) => {
+        // Avoid duplicates if same ID
+        if (prev.find(a => a.id === newAlert.id)) return prev;
+        return [newAlert, ...prev];
+      });
+    };
+
+    SocketService.on('emergency_alert', handleNewAlert);
+
+    return () => {
+      SocketService.off('emergency_alert', handleNewAlert);
+    };
+  }, [loadAlerts]);
+
+  const renderItem = useCallback(({ item }: { item: AlertItem }) => <AlertCard item={item} />, []);
+  const keyExtractor = useCallback((item: AlertItem) => item.id, []);
 
   return (
     <ThemedView style={styles.container}>
       <FlatList
         data={alerts}
-        keyExtractor={(item) => item.id}
+        keyExtractor={keyExtractor}
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
+        initialNumToRender={10}
+        maxToRenderPerBatch={10}
+        windowSize={5}
+        removeClippedSubviews={true}
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <IconSymbol name="bell.slash.fill" size={48} color="rgba(255,255,255,0.2)" />

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, TouchableOpacity, Alert, View, ScrollView } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { StyleSheet, TouchableOpacity, Alert, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { HelloWave } from '@/components/hello-wave';
@@ -11,19 +11,18 @@ import { useLocation } from '@/hooks/useLocation';
 import SocketService from '@/services/socketService';
 import { LocationService } from '@/services/locationService';
 import { AuthService, UserProfile } from '@/services/authService';
-import BLEMeshService, { MeshNode, SOSMessage } from '@/services/bleService';
+import BLEMeshService, { MeshNode } from '@/services/bleService';
 
 export default function DashboardScreen() {
   const router = useRouter();
   const { location, errorMsg, loading, refreshLocation } = useLocation();
   const [isSharing, setIsSharing] = useState(false);
-  const [subscription, setSubscription] = useState<any>(null);
+  const subscriptionRef = useRef<any>(null);
   const [user, setUser] = useState<UserProfile | null>(null);
 
   // Offline Resilience (BLE Mesh)
   const [isMeshActive, setIsMeshActive] = useState(false);
   const [meshNodes, setMeshNodes] = useState<MeshNode[]>([]);
-  const [incomingSOS, setIncomingSOS] = useState<SOSMessage[]>([]);
 
   useEffect(() => {
     SocketService.connect();
@@ -32,18 +31,19 @@ export default function DashboardScreen() {
     // Initialize BLE Mesh
     BLEMeshService.initialize().then(() => {
       BLEMeshService.onSOSReceived((message) => {
-        setIncomingSOS((prev) => [message, ...prev].slice(0, 5)); // Keep last 5
         Alert.alert(
-          'OFFLINE SOS RECEIVED', 
+          'OFFLINE SOS RECEIVED',
           `Critical alert relayed from mesh node!\nHops: ${message.hops}\nStatus: ${message.status.toUpperCase()}`
         );
       });
     });
 
     return () => {
-      stopLocationUpdates();
       SocketService.disconnect();
-      if (isMeshActive) BLEMeshService.stopScanning();
+      BLEMeshService.stopScanning();
+      if (subscriptionRef.current) {
+        subscriptionRef.current.remove();
+      }
     };
   }, []);
 
@@ -68,7 +68,7 @@ export default function DashboardScreen() {
     });
 
     if (sub) {
-      setSubscription(sub);
+      subscriptionRef.current = sub;
       setIsSharing(true);
     } else {
       Alert.alert('Permission Denied', 'Please enable location permissions in settings.');
@@ -76,9 +76,9 @@ export default function DashboardScreen() {
   };
 
   const stopLocationUpdates = () => {
-    if (subscription) {
-      subscription.remove();
-      setSubscription(null);
+    if (subscriptionRef.current) {
+      subscriptionRef.current.remove();
+      subscriptionRef.current = null;
     }
     setIsSharing(false);
   };
@@ -103,6 +103,17 @@ export default function DashboardScreen() {
       setIsMeshActive(true);
     }
   };
+
+  // Update mesh nodes count periodically
+  useEffect(() => {
+    if (!isMeshActive) return;
+
+    const interval = setInterval(() => {
+      setMeshNodes(BLEMeshService.getConnectedNodes());
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isMeshActive]);
 
   const triggerSOS = () => {
     Alert.alert(

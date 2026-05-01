@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { StyleSheet, View, Text, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,6 +16,31 @@ interface ChatMessage {
   type: 'chat' | 'broadcast' | 'command';
   timestamp: number;
 }
+
+const MessageBubble = memo(function MessageBubble({ item, currentUserId }: { item: ChatMessage, currentUserId?: string | number }) {
+  const isMe = item.sender_id.toString() === currentUserId?.toString();
+  const isBroadcast = item.type === 'broadcast';
+
+  if (isBroadcast) {
+    return (
+      <View style={styles.broadcastContainer}>
+        <View style={styles.broadcastBadge}>
+          <Ionicons name="megaphone" size={12} color="white" />
+          <Text style={styles.broadcastText}> EMERGENCY BROADCAST</Text>
+        </View>
+        <Text style={styles.broadcastMessage}>{item.text}</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={[styles.messageBubble, isMe ? styles.myMessage : styles.theirMessage]}>
+      {!isMe && <Text style={styles.senderName}>{item.sender_name}</Text>}
+      <Text style={styles.messageText}>{item.text}</Text>
+      <Text style={styles.timestamp}>{new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
+    </View>
+  );
+});
 
 export default function MessagesScreen() {
   const insets = useSafeAreaInsets();
@@ -51,7 +76,7 @@ export default function MessagesScreen() {
     };
   }, [handleReceiveMessage]);
 
-  const sendMessage = () => {
+  const sendMessage = useCallback(() => {
     if (!inputText.trim() || !user) return;
 
     const messageData = {
@@ -63,32 +88,13 @@ export default function MessagesScreen() {
 
     SocketService.sendMessage(messageData);
     setInputText('');
-  };
+  }, [inputText, user]);
 
-  const renderItem = ({ item }: { item: ChatMessage }) => {
-    const isMe = item.sender_id === user?.id;
-    const isBroadcast = item.type === 'broadcast';
-
-    if (isBroadcast) {
-      return (
-        <View style={styles.broadcastContainer}>
-          <View style={styles.broadcastBadge}>
-            <Ionicons name="megaphone" size={12} color="white" />
-            <Text style={styles.broadcastText}> EMERGENCY BROADCAST</Text>
-          </View>
-          <Text style={styles.broadcastMessage}>{item.text}</Text>
-        </View>
-      );
-    }
-
-    return (
-      <View style={[styles.messageBubble, isMe ? styles.myMessage : styles.theirMessage]}>
-        {!isMe && <Text style={styles.senderName}>{item.sender_name}</Text>}
-        <Text style={styles.messageText}>{item.text}</Text>
-        <Text style={styles.timestamp}>{new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
-      </View>
-    );
-  };
+  const renderItem = useCallback(({ item }: { item: ChatMessage }) => (
+    <MessageBubble item={item} currentUserId={user?.id} />
+  ), [user?.id]);
+  
+  const keyExtractor = useCallback((item: ChatMessage) => item.id, []);
 
   return (
     <ThemedView style={[styles.container, { paddingBottom: insets.bottom }]}>
@@ -100,10 +106,14 @@ export default function MessagesScreen() {
       <FlatList
         ref={flatListRef}
         data={messages}
-        keyExtractor={item => item.id}
+        keyExtractor={keyExtractor}
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
         onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
+        initialNumToRender={15}
+        maxToRenderPerBatch={10}
+        windowSize={10}
+        removeClippedSubviews={true}
       />
 
       <KeyboardAvoidingView

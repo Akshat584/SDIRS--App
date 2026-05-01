@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(export PATH=\"/c/Program Files/PostgreSQL/17/bin:$PATH\")",
+      "Bash(psql --version)",
+      "Bash(psql -U postgres -c \"\\\\l\")",
+      "Bash(pip list:*)",
+      "Bash(python init_db.py)",
+      "Bash(pip install:*)",
+      "Bash(python:*)",
+      "Bash(curl -s http://localhost:8000/)",
+      "Bash(curl:*)",
+      "Bash(pkill:*)",
+      "Bash(taskkill /F /IM python.exe)",
+      "Bash(ls:*)",
+      "Bash(killall python:*)",
+      "Bash(find . -name \"*.pyc\" -delete)",
+      "Bash(find . -name \"__pycache__\" -type d -exec rm -rf {} +)",
+      "Bash(find . -name Dockerfile* -o -name docker-compose.yml -o -name *.yaml -o -name .env.example)",
+      "Bash(chmod:*)",
+      "Bash(find mobile-app:*)",
+      "Bash(npm run:*)",
+      "Bash(npx tsc:*)",
+      "Bash(grep -r 'class Text' --include=*.ts --include=*.tsx .)",
+      "Bash(npx expo:*)",
+      "Bash(npx expo-doctor:*)",
+      "Bash(find backend/app -type f -name *.py)",
+      "mcp__ide__getDiagnostics"
+    ]
+  }
+}

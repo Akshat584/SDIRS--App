@@ -24,14 +24,14 @@ export default function AuthScreen() {
 
     setLoading(true);
     if (isLogin) {
-      const { session, error } = await AuthService.signIn(email, password);
+      const { error } = await AuthService.signIn(email, password);
       if (error) {
         Alert.alert('Login Failed', error);
       } else {
         router.replace('/(tabs)' as any);
       }
     } else {
-      const { user, error } = await AuthService.signUp(email, password, fullName, role);
+      const { error } = await AuthService.signUp(email, password, fullName, role);
       if (error) {
         Alert.alert('Signup Failed', error);
       } else {

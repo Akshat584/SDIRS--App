@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
+import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
 /**
  * SDIRS Digital Twin / 3D Visualization (Module 9)
@@ -9,9 +11,6 @@ const DigitalTwin3D = () => {
   const [floodLevel, setFloodLevel] = useState(0);
 
   useEffect(() => {
-    if (!window.THREE) return;
-
-    const THREE = window.THREE;
     const width = mountRef.current.clientWidth;
     const height = mountRef.current.clientHeight;
 
@@ -28,11 +27,8 @@ const DigitalTwin3D = () => {
     renderer.setSize(width, height);
     mountRef.current.appendChild(renderer.domElement);
 
-    // 4. Orbit Controls (assuming global OrbitControls from CDN)
-    let controls;
-    if (window.THREE.OrbitControls) {
-      controls = new window.THREE.OrbitControls(camera, renderer.domElement);
-    }
+    // 4. Orbit Controls
+    const controls = new OrbitControls(camera, renderer.domElement);
 
     // 5. Lighting
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
@@ -93,7 +89,7 @@ const DigitalTwin3D = () => {
       // Animate water level based on simulation
       water.position.y = (Math.sin(Date.now() * 0.001) + 1) * 1.5; // Simulate rising/falling
       
-      if (controls) controls.update();
+      controls.update();
       renderer.render(scene, camera);
     };
 
@@ -105,6 +101,7 @@ const DigitalTwin3D = () => {
         mountRef.current.removeChild(renderer.domElement);
       }
       renderer.dispose();
+      scene.clear();
     };
   }, []);
 

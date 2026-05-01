@@ -1,102 +1,63 @@
 // SDIRS Edge AI Machine Learning Service (Module 3 - Edge Triage)
 // This service simulates on-device image verification using TensorFlow Lite.
 
+import axios from 'axios';
+import { API_BASE } from './apiConfig';
+
 export interface ImageAnalysisResult {
   detectedLabels: string[];
   severity: 'low' | 'medium' | 'high' | 'critical';
   confidence: number;
+  verified: boolean;
 }
-
-/**
- * TFLiteEngine: Mock for actual TFLite native module usage in React Native.
- * In a real app, you would use: import Tflite from 'react-native-tflite';
- * Or for Expo: import * as tf from '@tensorflow/tfjs';
- */
-const TFLiteEngine = {
-  loadModel: async (modelPath: string, labelsPath: string) => {
-    console.log(`[Edge AI] Loading model from ${modelPath}...`);
-    // Simulating native module TFLite model loading
-    return true;
-  },
-  
-  runInference: async (imageUri: string): Promise<any> => {
-    console.log(`[Edge AI] Running on-device triage for: ${imageUri}`);
-    // Simulated inference logic
-    const labels = ['fire', 'flood', 'debris', 'structure_damage', 'road_blocked', 'medical'];
-    const count = Math.floor(Math.random() * 3) + 1;
-    const detected = [];
-    for(let i=0; i<count; i++) {
-        detected.push(labels[Math.floor(Math.random() * labels.length)]);
-    }
-    return detected;
-  }
-};
 
 export const MLService = {
   /**
-   * TASK 1: Edge-AI Verification (Module 3)
-   * TensorFlow Lite on-device image triage (Zero-Bandwidth)
-   * This logic runs locally on the mobile device without hitting the server.
+   * TASK 1: Intelligent Incident Analysis
+   * Calls the SDIRS Backend AI pipeline for CV and Severity prediction.
    */
-  performOnDeviceTriage: async (imageUri: string): Promise<ImageAnalysisResult> => {
-    console.info("SDIRS: Initializing on-device Edge AI triage...");
-    
-    // Simulate model loading (usually happens once at startup)
-    await TFLiteEngine.loadModel(
-      'assets/models/disaster_triage_v1.tflite',
-      'assets/models/labels.txt'
-    );
+  analyzeImage: async (imageUri: string, description: string = "", latitude: number = 0, longitude: number = 0): Promise<ImageAnalysisResult> => {
+    try {
+      console.log(`[ML Service] Requesting cloud analysis for: ${imageUri}`);
+      
+      const response = await axios.post(`${API_BASE}/api/analysis/analyze`, {
+        description: description,
+        image_uri: imageUri,
+        latitude: latitude,
+        longitude: longitude
+      });
 
-    // Artificial delay to simulate TFLite inference processing
-    await new Promise(r => setTimeout(r, 800));
+      const { severity, verified, ml_labels } = response.data;
 
-    const detectedLabels = await TFLiteEngine.runInference(imageUri);
-    
-    // Determine severity locally based on detected disaster features
-    let severity: 'low' | 'medium' | 'high' | 'critical' = 'low';
-    if (detectedLabels.includes('fire') || detectedLabels.includes('trapped')) {
-      severity = 'critical';
-    } else if (detectedLabels.includes('flood') || detectedLabels.includes('structure_damage')) {
-      severity = 'high';
-    } else if (detectedLabels.includes('road_blocked') || detectedLabels.includes('debris')) {
-      severity = 'medium';
+      return {
+        detectedLabels: ml_labels,
+        severity: severity as any,
+        confidence: 0.9, // Backend handles confidence thresholding
+        verified: verified
+      };
+    } catch (error) {
+      console.error('[ML Service] Cloud analysis failed, using local fallback:', error);
+      // Fallback to local rule-based analysis if server is unreachable
+      const localSeverity = MLService.analyzeTextSeverity(description);
+      return {
+        detectedLabels: ['offline_mode'],
+        severity: localSeverity,
+        confidence: 0.5,
+        verified: false
+      };
     }
-
-    const result: ImageAnalysisResult = {
-      detectedLabels,
-      severity,
-      confidence: 0.88 + (Math.random() * 0.08)
-    };
-
-    console.log(`[Edge AI Result] Verified on-device: ${JSON.stringify(result)}`);
-    return result;
   },
 
   /**
-   * Original analyzeImage (Simulates cloud/server analysis for comparison or fallback)
+   * performOnDeviceTriage: Optimized for low-bandwidth environments.
+   * Currently redirects to analyzeImage as a cloud-first strategy for this phase.
    */
-  analyzeImage: async (imageUri: string): Promise<ImageAnalysisResult> => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const scenarios = [
-          { labels: ['fire', 'smoke', 'structure damage'], severity: 'critical' as const },
-          { labels: ['flood', 'water', 'submerged vehicle'], severity: 'high' as const },
-          { labels: ['fallen tree', 'debris', 'blocked road'], severity: 'medium' as const },
-          { labels: ['puddle', 'rain'], severity: 'low' as const },
-        ];
-        const result = scenarios[Math.floor(Math.random() * scenarios.length)];
-        
-        resolve({
-          detectedLabels: result.labels,
-          severity: result.severity,
-          confidence: 0.85 + (Math.random() * 0.1),
-        });
-      }, 2000);
-    });
+  performOnDeviceTriage: async (imageUri: string, description: string = ""): Promise<ImageAnalysisResult> => {
+    return MLService.analyzeImage(imageUri, description);
   },
 
   /**
-   * TASK 2: NLP for Incident Classification
+   * TASK 2: NLP for Incident Classification (Local Fallback)
    */
   analyzeTextSeverity: (description: string): 'low' | 'medium' | 'high' | 'critical' => {
     const text = description.toLowerCase();

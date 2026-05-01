@@ -1,8 +1,11 @@
 import asyncio
+import pytest
 from app.services.prediction_engine import PredictionEngine
 from app.models.heatmap import HeatmapPoint
 
+@pytest.mark.asyncio
 async def test_heatmap_generation():
+
     print("--- Testing Heatmap Risk Data Generation (Module 8) ---")
     
     # Mock center: Lucknow

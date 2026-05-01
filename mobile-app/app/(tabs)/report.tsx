@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert, View, Image, ActivityIndicator, FlatList, Text } from 'react-native';
+import { StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert, View, Image, ActivityIndicator, Text } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useLocation } from '@/hooks/useLocation';
 import SocketService from '@/services/socketService';
 import { MLService, ImageAnalysisResult } from '@/services/mlService';
 import { AuthService } from '@/services/authService';
+
 import { API_BASE } from '@/services/apiConfig';
+import SyncService from '@/services/syncService';
 
 const INCIDENT_CATEGORIES = [
   { id: 'flood', label: 'Flood', icon: 'water', color: '#00d4ff' },
@@ -19,9 +19,11 @@ const INCIDENT_CATEGORIES = [
   { id: 'medical', label: 'Medical', icon: 'medical', color: '#ffcc00' },
   { id: 'earthquake', label: 'Earthquake', icon: 'pulse', color: '#8b5cf6' },
   { id: 'roadblock', label: 'Road Block', icon: 'warning', color: '#ff944d' },
-];
+] as const;
 
-const SAFETY_ADVISORIES: Record<string, string[]> = {
+type IncidentCategory = typeof INCIDENT_CATEGORIES[number]['id'];
+
+const SAFETY_ADVISORIES: Record<IncidentCategory, string[]> = {
   flood: ['Move to higher ground immediately.', 'Avoid walking or driving through flood waters.', 'Turn off utilities if instructed.'],
   fire: ['Evacuate the building immediately.', 'Stay low to the ground to avoid smoke.', 'Do not use elevators.'],
   medical: ['Do not move the person unless necessary.', 'Check for breathing and pulse.', 'Apply pressure to any bleeding.'],
@@ -31,9 +33,9 @@ const SAFETY_ADVISORIES: Record<string, string[]> = {
 
 export default function ReportScreen() {
   const { location } = useLocation();
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<IncidentCategory | null>(null);
   const [description, setDescription] = useState('');
-  
+
   // ML States
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [isAnalyzingImage, setIsAnalyzingImage] = useState(false);
@@ -63,7 +65,7 @@ export default function ReportScreen() {
     if (!result.canceled && result.assets && result.assets.length > 0) {
       const uri = result.assets[0].uri;
       setImageUri(uri);
-      
+
       setIsAnalyzingImage(true);
       try {
         // 1. Edge AI Triage (Instant, Zero-Bandwidth)
@@ -78,7 +80,7 @@ export default function ReportScreen() {
         // 2. Cloud AI Analysis (Deep Triage)
         const cloudRes = await MLService.analyzeImage(uri);
         setCloudAnalysis(cloudRes);
-        
+
       } catch (error) {
         console.error('Analysis Failed', error);
       } finally {
@@ -102,41 +104,58 @@ export default function ReportScreen() {
 
     try {
       const user = await AuthService.getCurrentUser();
-      
+
+      const reportData: any = {
+        lat: location.coords.latitude.toString(),
+        lon: location.coords.longitude.toString(),
+        incident_type: selectedCategory,
+        title: `Emergency: ${selectedCategory.toUpperCase()}`,
+        description: description,
+        reporter_id: user?.id?.toString() || '1',
+      };
+
       const formData = new FormData();
-      formData.append('lat', location.coords.latitude.toString());
-      formData.append('lon', location.coords.longitude.toString());
-      formData.append('incident_type', selectedCategory);
-      formData.append('title', `Emergency: ${selectedCategory.toUpperCase()}`);
-      formData.append('description', description);
-      formData.append('reporter_id', user?.id?.toString() || '1');
+      Object.keys(reportData).forEach(key => formData.append(key, reportData[key]));
 
       if (imageUri) {
         const uriParts = imageUri.split('.');
         const fileType = uriParts[uriParts.length - 1];
-        formData.append('photo', {
+        const photo = {
           uri: imageUri,
           name: `photo.${fileType}`,
           type: `image/${fileType}`,
-        } as any);
+        } as any;
+        formData.append('photo', photo);
+        reportData.photo = photo;
       }
 
-      const response = await axios.post(`${API_BASE}/api/incidents`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-
-      if (response.data.status === 'success') {
-        // Emit via socket for real-time dashboard update
-        SocketService.emit('incident_reported', {
-          id: response.data.incident_id,
-          type: selectedCategory,
-          location: location.coords,
-          severity: nlpSeverity
+      try {
+        const response = await axios.post(`${API_BASE}/api/incidents`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+          timeout: 15000, 
         });
 
+        if (response.data.status === 'success') {
+          // Emit via socket for real-time dashboard update
+          SocketService.emit('incident_reported', {
+            id: response.data.incident_id,
+            type: selectedCategory,
+            location: location.coords,
+            severity: nlpSeverity
+          });
+
+          Alert.alert(
+            'Report Logged',
+            'Responders have been notified. Please follow the safety instructions.',
+            [{ text: 'OK', onPress: resetForm }]
+          );
+        }
+      } catch (_submitError) {
+        console.log('Network failure, queuing incident for offline sync');
+        await SyncService.queueIncident(reportData);
         Alert.alert(
-          'Report Logged',
-          'Responders have been notified. Please follow the safety instructions.',
+          'Offline Mode',
+          'Network is unstable. Your report has been saved and will be sent automatically when connection is restored.',
           [{ text: 'OK', onPress: resetForm }]
         );
       }
@@ -157,7 +176,7 @@ export default function ReportScreen() {
   };
 
   const getSeverityColor = (severity: string) => {
-    switch(severity) {
+    switch (severity) {
       case 'critical': return '#9b1a1a';
       case 'high': return '#ff3b3b';
       case 'medium': return '#ffcc00';
@@ -170,10 +189,10 @@ export default function ReportScreen() {
       <ThemedText type="subtitle" style={styles.label}>1. Select Incident Type</ThemedText>
       <View style={styles.categoryGrid}>
         {INCIDENT_CATEGORIES.map((cat) => (
-          <TouchableOpacity 
-            key={cat.id} 
+          <TouchableOpacity
+            key={cat.id}
             style={[
-              styles.categoryItem, 
+              styles.categoryItem,
               selectedCategory === cat.id && { borderColor: cat.color, backgroundColor: `${cat.color}20` }
             ]}
             onPress={() => setSelectedCategory(cat.id)}
@@ -252,15 +271,15 @@ export default function ReportScreen() {
         </View>
       )}
 
-      <TouchableOpacity 
-        style={[styles.submitButton, (isSubmitting || !selectedCategory) && { opacity: 0.5 }]} 
+      <TouchableOpacity
+        style={[styles.submitButton, (isSubmitting || !selectedCategory) && { opacity: 0.5 }]}
         onPress={handleSubmit}
         disabled={isSubmitting || !selectedCategory}
       >
         {isSubmitting ? (
-           <ActivityIndicator size="small" color="white" />
+          <ActivityIndicator size="small" color="white" />
         ) : (
-           <ThemedText style={styles.submitText}>Submit Emergency Report</ThemedText>
+          <ThemedText style={styles.submitText}>Submit Emergency Report</ThemedText>
         )}
       </TouchableOpacity>
 

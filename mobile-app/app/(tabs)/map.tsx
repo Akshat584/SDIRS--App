@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { StyleSheet, View, Text } from 'react-native';
-import MapView, { Circle, Marker, Polyline } from 'react-native-maps';
+import MapView, { Circle, Marker, Polyline } from '@/components/MapView';
 
 import { ThemedText } from '@/components/themed-text';
 import { useLocation } from '@/hooks/useLocation';
@@ -10,7 +10,7 @@ import { HeatmapService, HeatmapPoint } from '@/services/heatmapService';
 import { RoutingService } from '@/services/routingService';
 
 export default function MapScreen() {
-  const { location, loading } = useLocation();
+  const { location } = useLocation();
   const [user, setUser] = useState<UserProfile | null>(null);
   const [heatmapPoints, setHeatmapPoints] = useState<HeatmapPoint[]>([]);
   const [routeCoordinates, setRouteCoordinates] = useState<{ latitude: number, longitude: number }[]>([]);
@@ -28,7 +28,7 @@ export default function MapScreen() {
   // Helper to decode Google Maps Polyline
   const decodePolyline = (t: string) => {
     let points = [];
-    for (let step, shift = 0, result = 0, byte = null, lat = 0, lng = 0, i = 0; i < t.length; ) {
+    for (let shift = 0, result = 0, byte = null, lat = 0, lng = 0, i = 0; i < t.length; ) {
       for (shift = 0, result = 0; byte = t.charCodeAt(i++) - 63, result |= (31 & byte) << shift, shift += 5, 31 <= byte; );
       lat += 1 & result ? ~(result >> 1) : result >> 1;
       for (shift = 0, result = 0; byte = t.charCodeAt(i++) - 63, result |= (31 & byte) << shift, shift += 5, 31 <= byte; );
@@ -38,31 +38,13 @@ export default function MapScreen() {
     return points;
   };
   const [initialRegion, setInitialRegion] = useState({
-    latitude: 37.78825,
-    longitude: -122.4324,
-    latitudeDelta: 0.0922,
-    longitudeDelta: 0.0421,
+    latitude: 26.8467,
+    longitude: 80.9462,
+    latitudeDelta: 0.05,
+    longitudeDelta: 0.05,
   });
 
-  useEffect(() => {
-    if (location) {
-      setInitialRegion({
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-        latitudeDelta: 0.05,
-        longitudeDelta: 0.05,
-      });
-      fetchHeatmap(location.coords.latitude, location.coords.longitude);
-      if (assignedIncident) {
-        fetchRoute(
-          `${location.coords.latitude},${location.coords.longitude}`,
-          `${assignedIncident.latitude},${assignedIncident.longitude}`
-        );
-      }
-    }
-  }, [location, assignedIncident]);
-
-  const fetchRoute = async (origin: string, destination: string) => {
+  const fetchRoute = useCallback(async (origin: string, destination: string) => {
     try {
       const directions = await RoutingService.getDirections(origin, destination);
       if (directions.routes.length > 0) {
@@ -72,16 +54,29 @@ export default function MapScreen() {
     } catch (err) {
       console.error("Routing error:", err);
     }
-  };
+  }, []);
 
-  const fetchHeatmap = async (lat: number, lon: number) => {
+  const fetchHeatmap = useCallback(async (lat: number, lon: number) => {
     try {
+      console.log(`[Map] Fetching heatmap for ${lat}, ${lon}`);
       const data = await HeatmapService.getHeatmapData(lat, lon);
       setHeatmapPoints(data.points);
     } catch (err) {
       console.error("Heatmap fetch error:", err);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (location?.coords) {
+      const { latitude, longitude } = location.coords;
+      setInitialRegion(prev => ({
+        ...prev,
+        latitude,
+        longitude,
+      }));
+      fetchHeatmap(latitude, longitude);
+    }
+  }, [location, fetchHeatmap]);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -92,7 +87,7 @@ export default function MapScreen() {
   }, []);
 
   const handleLocationUpdate = useCallback((data: any) => {
-    if (!data?.coords) return;
+    if (!data?.coords || data.id === SocketService.getSocketId()) return;
     setTrackedUsers(prev => ({
       ...prev,
       [data.id]: {
@@ -109,6 +104,14 @@ export default function MapScreen() {
   const handleIncidentAssignment = useCallback((data: any) => {
     setAssignedIncident(data);
   }, []);
+
+  useEffect(() => {
+    if (assignedIncident && location?.coords) {
+      const originStr = `${location.coords.latitude},${location.coords.longitude}`;
+      const destStr = `${assignedIncident.latitude},${assignedIncident.longitude}`;
+      fetchRoute(originStr, destStr);
+    }
+  }, [assignedIncident, location?.coords, fetchRoute]);
 
   useEffect(() => {
     SocketService.on('location_update', handleLocationUpdate);

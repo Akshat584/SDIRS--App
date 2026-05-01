@@ -16,11 +16,17 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
-const API_BASE = "http://localhost:8000";
-const socket = io(API_BASE);
+const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:8000";
+const socket = io(API_BASE, {
+  transports: ['websocket'],
+  reconnection: true,
+  reconnectionDelay: 1000,
+  reconnectionAttempts: 5
+});
 
 function App() {
   const [view, setView] = useState('command'); // 'command' or 'intelligence'
+  const [loading, setLoading] = useState(true);
   const [incidents, setIncidents] = useState([]);
   const [heatmapPoints, setHeatmapPoints] = useState([]);
   const [predictions, setPredictions] = useState([]);
@@ -32,37 +38,7 @@ function App() {
   const [responders, setResponders] = useState({});
   const [stats, setStats] = useState({ total: 0, active: 0, verified: 0, critical: 0 });
 
-  useEffect(() => {
-    fetchIncidents();
-    fetchHeatmap();
-    fetchAnalytics();
-    fetchDrones();
-
-    const droneInterval = setInterval(fetchDrones, 5000);
-    
-    socket.on('receive_location', (data) => {
-      setResponders(prev => ({ ...prev, [data.resource_id]: data }));
-    });
-
-    socket.on('receive_message', (data) => {
-      setMessages(prev => [...prev, data]);
-    });
-
-    socket.on('incident_update', (data) => {
-      fetchIncidents();
-    });
-
-    socket.on('prediction_alert', (data) => {
-      setPredictions(prev => [data, ...prev.slice(0, 9)]);
-    });
-
-    return () => {
-      socket.disconnect();
-      clearInterval(droneInterval);
-    };
-  }, []);
-
-  const fetchIncidents = async () => {
+  async function fetchIncidents() {
     try {
       const res = await axios.get(`${API_BASE}/api/incidents`);
       setIncidents(res.data);
@@ -79,34 +55,114 @@ function App() {
     } catch (err) {
       console.error("Failed to fetch incidents", err);
     }
-  };
+  }
 
-  const fetchDrones = async () => {
+  async function fetchDrones() {
     try {
       const res = await axios.get(`${API_BASE}/api/drones/fleet`);
       setDrones(res.data.drones);
     } catch (err) {
       console.error("Failed to fetch drones", err);
     }
-  };
+  }
 
-  const fetchHeatmap = async () => {
+  async function fetchHeatmap() {
     try {
       const res = await axios.get(`${API_BASE}/api/heatmap`);
       setHeatmapPoints(res.data.points);
     } catch (err) {
       console.error("Failed to fetch heatmap data", err);
     }
-  };
+  }
 
-  const fetchAnalytics = async () => {
+  async function fetchAnalytics() {
     try {
       const res = await axios.get(`${API_BASE}/api/dashboard-metrics`);
       setAnalytics(res.data);
     } catch (err) {
       console.error("Failed to fetch analytics", err);
     }
-  };
+  }
+
+  useEffect(() => {
+    const initApp = async () => {
+      setLoading(true);
+      await Promise.all([
+        fetchIncidents(),
+        fetchHeatmap(),
+        fetchAnalytics(),
+        fetchDrones()
+      ]);
+      setLoading(false);
+    };
+
+    initApp();
+
+    const droneInterval = setInterval(fetchDrones, 5000);
+    
+    // Module 4 & 5: Real-Time Location Updates
+    socket.on('location_update', (data) => {
+      setResponders(prev => ({ 
+        ...prev, 
+        [data.id]: {
+          ...data,
+          lat: data.coords.latitude,
+          lon: data.coords.longitude
+        } 
+      }));
+    });
+
+    // Module 9: Emergency Communication
+    socket.on('receive_message', (data) => {
+      setMessages(prev => [...prev, {
+        ...data,
+        timestamp: Date.now()
+      }]);
+    });
+
+    // Module 1 & 4: Emergency Alerts (SOS and New Incidents)
+    socket.on('emergency_alert', (data) => {
+      console.log("EMERGENCY ALERT:", data);
+      // Trigger a visual notification or sound here if needed
+      if (data.type.includes('SOS')) {
+        // Force refresh incidents or add to a special list
+        fetchIncidents();
+      }
+      
+      // Also show in messages as a broadcast
+      setMessages(prev => [...prev, {
+        sender_name: "SYSTEM ALERT",
+        text: `🚨 ${data.message}`,
+        type: 'broadcast',
+        timestamp: Date.now()
+      }]);
+    });
+
+    socket.on('incident_update', (data) => {
+      fetchIncidents();
+    });
+
+    socket.on('prediction_alert', (data) => {
+      setPredictions(prev => [data, ...prev.slice(0, 9)]);
+    });
+
+    return () => {
+      socket.disconnect();
+      clearInterval(droneInterval);
+    };
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-[#070a0f] text-[#00d4ff]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-[#00d4ff] mx-auto mb-4"></div>
+          <h2 className="text-xl font-bold tracking-widest uppercase">Initializing SDIRS Intelligence...</h2>
+          <p className="text-[#4d6a82] mt-2">Connecting to Real-Time Command Network</p>
+        </div>
+      </div>
+    );
+  }
 
   const sendMessage = (e) => {
     e.preventDefault();

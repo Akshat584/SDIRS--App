@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { API_BASE } from './apiConfig';
+import { API_BASE, ENDPOINTS } from './apiConfig';
 
 export interface HeatmapPoint {
   lat: number;
@@ -16,15 +16,19 @@ export interface HeatmapResponse {
 }
 
 export const HeatmapService = {
-  getHeatmapData: async (lat: number, lon: number): Promise<HeatmapResponse> => {
+  /**
+   * Fetches heatmap data from the backend.
+   */
+  getHeatmapData: async (lat: number, lon: number, radius: number = 5000): Promise<HeatmapResponse> => {
     try {
-      const response = await axios.get(`${API_BASE}/api/heatmap`, {
-        params: { lat, lon, radius: 5000 }
+      const response = await axios.get(`${API_BASE}${ENDPOINTS.HEATMAP}`, {
+        params: { lat, lon, radius },
+        timeout: 10000, // 10 second timeout
       });
       return response.data;
-    } catch (error) {
-      console.error("Failed to fetch heatmap data", error);
-      throw error;
+    } catch (error: any) {
+      console.error('[HeatmapService] Failed to fetch heatmap data:', error.message);
+      throw new Error(error.response?.data?.message || 'Failed to fetch heatmap data');
     }
   }
 };

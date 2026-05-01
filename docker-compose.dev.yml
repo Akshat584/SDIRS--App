@@ -1,0 +1,41 @@
+version: '3.8'
+
+# Development override - use: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+services:
+  # Using SQLite for development - no PostgreSQL needed
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sdirs-backend-dev
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=sqlite:///./sdirs_dev.sqlite
+      - REDIS_URL=redis://redis:6379/0
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - ENVIRONMENT=development
+      - ALLOWED_ORIGINS=http://localhost:3000,http://localhost:19006,http://localhost:8081
+      - LOG_LEVEL=DEBUG
+    ports:
+      - "8000:8000"
+    depends_on:
+      - redis
+    volumes:
+      - ./backend:/app
+      - /app/__pycache__
+      - ./backend/static:/app/static
+    networks:
+      - sdirs-network
+    command: uvicorn main:sio_app --host 0.0.0.0 --port 8000 --reload
+
+  redis:
+    image: redis:7-alpine
+    container_name: sdirs-redis-dev
+    ports:
+      - "6379:6379"
+    networks:
+      - sdirs-network
+
+networks:
+  sdirs-network:
+    driver: bridge

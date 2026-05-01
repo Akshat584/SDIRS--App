@@ -1,11 +1,11 @@
 import logging
 from sqlalchemy.orm import Session
-from geoalchemy2.shape import to_shape
 from typing import Dict, Any, List, Optional
 import math
 
 from app.db import schemas as db_models
 from app.services import google_maps_service
+from app.utils.geo import haversine, is_within_radius
 
 logger = logging.getLogger("SDIRS_Hazard_Routing")
 
@@ -41,9 +41,11 @@ class HazardAwareRoutingService:
         
         hazards_found = []
         for hazard in hazards:
-            hazard_pos = to_shape(hazard.location)
+            # Cross-check using latitude and longitude fields
+            h_lat, h_lon = hazard.latitude, hazard.longitude
+            
             # Check if any part of the route is near the hazard (within 200m)
-            is_near, min_dist = HazardAwareRoutingService._is_route_near_point(legs, hazard_pos.y, hazard_pos.x, 0.2)
+            is_near, min_dist = HazardAwareRoutingService._is_route_near_point(legs, h_lat, h_lon, 0.2)
             
             if is_near:
                 hazards_found.append({
@@ -51,7 +53,7 @@ class HazardAwareRoutingService:
                     "type": hazard.incident_type,
                     "severity": hazard.predicted_severity,
                     "distance_meters": round(min_dist * 1000, 1),
-                    "location": {"lat": hazard_pos.y, "lon": hazard_pos.x}
+                    "location": {"lat": h_lat, "lon": h_lon}
                 })
 
         # 4. Inject hazard alerts into the response
@@ -78,8 +80,8 @@ class HazardAwareRoutingService:
                 e_lat = step["end_location"]["lat"]
                 e_lon = step["end_location"]["lng"]
                 
-                d1 = HazardAwareRoutingService._haversine(s_lat, s_lon, p_lat, p_lon)
-                d2 = HazardAwareRoutingService._haversine(e_lat, e_lon, p_lat, p_lon)
+                d1 = haversine(s_lat, s_lon, p_lat, p_lon)
+                d2 = haversine(e_lat, e_lon, p_lat, p_lon)
                 
                 step_min = min(d1, d2)
                 if step_min < min_dist:
@@ -90,14 +92,3 @@ class HazardAwareRoutingService:
         
         return found, min_dist
 
-    @staticmethod
-    def _haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-        """
-        Calculate distance between two points in km.
-        """
-        R = 6371 # Earth radius
-        dlat = math.radians(lat2 - lat1)
-        dlon = math.radians(lon2 - lon1)
-        a = math.sin(dlat/2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon/2)**2
-        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
-        return R * c
